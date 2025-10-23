@@ -7,11 +7,7 @@ const televisionAbi = [
   "function getSlot0() external view returns (tuple(uint8 locked, uint16 epochId, uint192 initPrice, uint40 startTime, address owner, string uri))"
 ]
 
-// USDC contract ABI
-const usdcAbi = ["function approve(address spender, uint256 amount) external returns (bool)"]
-
 const TELEVISION_CONTRACT_ADDRESS = "0x9C751E6825EDAa55007160b99933846f6ECeEc9B"
-const USDC_CONTRACT_ADDRESS_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913"
 
 module.exports = async function handler(req, res) {
   console.log("[Television] /api/transaction called")
