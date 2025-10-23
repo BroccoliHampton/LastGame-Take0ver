@@ -16,7 +16,24 @@ module.exports = async function handler(req, res) {
     console.log("[Television] Using START_IMAGE_URL:", START_IMAGE_URL)
     console.log("[Television] Using PUBLIC_URL:", PUBLIC_URL)
 
-    // Standard frame format (not mini app)
+    const miniAppEmbed = {
+      version: "1",
+      imageUrl: START_IMAGE_URL,
+      button: {
+        title: "Pay & Play",
+        action: {
+          type: "launch_frame",
+          name: "Television Game",
+          url: `${PUBLIC_URL}/api/payment-frame`,
+          splashImageUrl: START_IMAGE_URL,
+          splashBackgroundColor: "#1a1a1a",
+        },
+      },
+    }
+
+    const serializedEmbed = JSON.stringify(miniAppEmbed)
+    console.log("[Television] Mini App Embed:", serializedEmbed)
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -24,90 +41,25 @@ module.exports = async function handler(req, res) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Television Game</title>
   
-  <!-- Farcaster Frame Meta Tags -->
-  <meta property="fc:frame" content="vNext" />
-  <meta property="fc:frame:image" content="${START_IMAGE_URL}" />
-  <meta property="fc:frame:image:aspect_ratio" content="1:1" />
-  <meta property="fc:frame:button:1" content="Approve USDC (Step 1)" />
-  <meta property="fc:frame:button:1:action" content="tx" />
-  <meta property="fc:frame:button:1:target" content="${PUBLIC_URL}/api/approve" />
-  <meta property="fc:frame:post_url" content="${PUBLIC_URL}/api/approved" />
+  <!-- Farcaster Mini App Meta Tag -->
+  <meta property="fc:miniapp" content='${serializedEmbed}' />
+  <meta property="fc:frame" content='${serializedEmbed}' />
   
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="Television Game" />
   <meta property="og:description" content="Pay to take over the channel" />
   <meta property="og:image" content="${START_IMAGE_URL}" />
-  
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      max-width: 400px;
-    }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-    p {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      opacity: 0.9;
-    }
-    .steps {
-      font-size: 0.9rem;
-      margin-top: 1.5rem;
-      text-align: left;
-      background: rgba(255,255,255,0.1);
-      padding: 1rem;
-      border-radius: 8px;
-    }
-    .info {
-      font-size: 0.85rem;
-      opacity: 0.8;
-      margin-top: 1rem;
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background: #1a1a1a; color: white;">
     <h1>📺 Television Game</h1>
     <p>Pay to take over the channel</p>
-    <div class="steps">
-      <strong>How it works:</strong><br>
-      1. Approve USDC spending (one-time)<br>
-      2. Take over the channel
-    </div>
-    <div class="info">Price decays to 0 over 1 hour</div>
-  </div>
-</body>
-</html>`
-</head>
-<body>
-  <div class="container">
-    <h1>📺 Television Game</h1>
-    <p>Pay to take over the channel</p>
-    <div class="steps">
-      <strong>How it works:</strong><br>
-      1. Approve USDC spending (one-time)<br>
-      2. Take over the channel
-    </div>
-    <div class="info">Price decays to 0 over 1 hour</div>
+    <p style="font-size: 0.9rem; opacity: 0.8;">Price decays to FREE over 1 hour</p>
   </div>
 </body>
 </html>`
 
-    console.log("[Television] Generated HTML with standard frame format")
+    console.log("[Television] Generated HTML with Mini App Embed format")
 
     res.setHeader("Content-Type", "text/html; charset=utf-8")
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
