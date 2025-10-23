@@ -46,23 +46,43 @@ module.exports = async function handler(req, res) {
     }
 
     const txHash = validation.action.transaction.hash
-    console.log("Verifying transaction:", txHash)
+    console.log("[Television] Verifying transaction:", txHash)
 
     // Get transaction receipt
     const receipt = await provider.getTransactionReceipt(txHash)
 
     // Check if transaction was successful
     if (receipt && receipt.status === 1) {
-      console.log("Payment verified successfully")
+      console.log("[Television] Takeover verified successfully")
+      
+      // Optional: Parse the transaction logs to get the actual payment amount
+      const televisionInterface = new ethers.utils.Interface([
+        "event Television__Takeover(address indexed from, address indexed channelOwner, uint256 paymentAmount)"
+      ])
+      
+      let paymentAmount = null
+      for (const log of receipt.logs) {
+        try {
+          const parsed = televisionInterface.parseLog(log)
+          if (parsed.name === "Television__Takeover") {
+            paymentAmount = parsed.args.paymentAmount
+            console.log("[Television] Payment amount:", ethers.utils.formatUnits(paymentAmount, 6), "USDC")
+            break
+          }
+        } catch (e) {
+          // Not a Television event, skip
+        }
+      }
+      
       res.setHeader("Content-Type", "text/html")
       res.status(200).send(createRedirectFrame(SUCCESS_IMAGE_URL, GAME_URL))
     } else {
-      console.log("Payment failed or pending")
+      console.log("[Television] Payment failed or pending")
       res.setHeader("Content-Type", "text/html")
       res.status(200).send(createRetryFrame(FAILED_IMAGE_URL, PUBLIC_URL))
     }
   } catch (e) {
-    console.error("Error in /api/verify:", e)
+    console.error("[Television] Error in /api/verify:", e)
     res.status(500).send(`Server Error: ${e.message}`)
   }
 }
