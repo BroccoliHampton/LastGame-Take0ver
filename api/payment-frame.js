@@ -1,21 +1,20 @@
 module.exports = async function handler(req, res) {
-  console.log("[v0] /api/payment-frame called - Method:", req.method)
+  console.log("[Television] /api/payment-frame called - Method:", req.method)
 
   try {
     const START_IMAGE_URL = process.env.START_IMAGE_URL || "https://i.imgur.com/IsUWL7j.png"
     const PUBLIC_URL = process.env.PUBLIC_URL || "https://last-game-kappa.vercel.app"
-    const YOUR_WALLET_ADDRESS = process.env.YOUR_WALLET_ADDRESS
     const GAME_URL = process.env.GAME_URL
+    const BASE_PROVIDER_URL = process.env.BASE_PROVIDER_URL
 
-    console.log("[v0] Payment frame loaded")
+    console.log("[Television] Payment frame loaded")
 
-    // This is the actual payment frame with transaction button
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Payment Frame</title>
+  <title>Television Payment Frame</title>
   <style>
     body {
       margin: 0;
@@ -36,6 +35,11 @@ module.exports = async function handler(req, res) {
     h1 {
       font-size: 2rem;
       margin-bottom: 1rem;
+    }
+    .price {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
     }
     p {
       font-size: 1.1rem;
@@ -82,122 +86,203 @@ module.exports = async function handler(req, res) {
     .loading {
       color: #ffffcc;
     }
+    .info {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 1rem;
+    }
   </style>
   
   <!-- Farcaster Frame Meta Tags for Transaction -->
   <meta property="fc:frame" content="vNext" />
   <meta property="fc:frame:image" content="${START_IMAGE_URL}" />
   <meta property="fc:frame:image:aspect_ratio" content="1:1" />
-  <meta property="fc:frame:button:1" content="Pay 0.25 USDC" />
+  <meta property="fc:frame:button:1" content="Pay & Play" />
   <meta property="fc:frame:button:1:action" content="tx" />
   <meta property="fc:frame:button:1:target" content="${PUBLIC_URL}/api/transaction" />
   <meta property="fc:frame:post_url" content="${PUBLIC_URL}/api/verify" />
   
   <!-- Open Graph Meta Tags -->
-  <meta property="og:title" content="Payment Frame" />
+  <meta property="og:title" content="Television Payment Frame" />
   <meta property="og:image" content="${START_IMAGE_URL}" />
 </head>
 <body>
   <div class="container">
-    <h1>🎮 Last Game</h1>
-    <p>Pay 0.25 USDC to unlock the game</p>
-    <button id="payButton">Pay 0.25 USDC</button>
+    <h1>📺 Television Game</h1>
+    <div class="price" id="priceDisplay">Loading price...</div>
+    <p>Pay to take over the channel</p>
+    <button id="payButton">Pay & Play</button>
     <div id="status" class="status"></div>
+    <div class="info">Price decays to 0 over 1 hour</div>
   </div>
 
   <script type="module">
-    console.log('[v0] Payment frame script starting')
+    console.log('[Television] Payment frame script starting')
     
     const payButton = document.getElementById('payButton')
     const statusDiv = document.getElementById('status')
+    const priceDisplay = document.getElementById('priceDisplay')
+    
+    // Contract addresses
+    const TELEVISION_ADDRESS = '0x9C751E6825EDAa55007160b99933846f6ECeEc9B'
+    const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913'
+    
+    // ABI fragments
+    const televisionAbi = [
+      'function takeover(string memory uri, address channelOwner, uint256 epochId, uint256 deadline, uint256 maxPaymentAmount) external returns (uint256 paymentAmount)',
+      'function getPrice() external view returns (uint256)',
+      'function getSlot0() external view returns (tuple(uint8 locked, uint16 epochId, uint192 initPrice, uint40 startTime, address owner, string uri))'
+    ]
+    
+    const usdcAbi = [
+      'function approve(address spender, uint256 amount) external returns (bool)',
+      'function allowance(address owner, address spender) external view returns (uint256)'
+    ]
+    
+    // Fetch current price
+    async function fetchPrice() {
+      try {
+        const { ethers } = await import('https://cdn.ethers.io/lib/ethers-5.2.esm.min.js')
+        
+        const provider = new ethers.providers.JsonRpcProvider('https://mainnet.base.org')
+        const contract = new ethers.Contract(TELEVISION_ADDRESS, televisionAbi, provider)
+        
+        const price = await contract.getPrice()
+        const priceInUsdc = ethers.utils.formatUnits(price, 6)
+        
+        priceDisplay.textContent = priceInUsdc === '0.0' ? 'FREE!' : priceInUsdc + ' USDC'
+        
+        return price
+      } catch (error) {
+        console.error('[Television] Error fetching price:', error)
+        priceDisplay.textContent = 'Error loading price'
+        return null
+      }
+    }
+    
+    // Fetch price on load
+    fetchPrice()
+    
+    // Refresh price every 10 seconds
+    setInterval(fetchPrice, 10000)
     
     payButton.addEventListener('click', async () => {
-      console.log('[v0] Button clicked!')
+      console.log('[Television] Button clicked!')
       statusDiv.textContent = 'Initializing payment...'
       statusDiv.className = 'status loading'
       
       try {
         payButton.disabled = true
         
-        console.log('[v0] Importing Farcaster SDK')
+        console.log('[Television] Importing dependencies')
         const { default: sdk } = await import('https://esm.sh/@farcaster/miniapp-sdk')
+        const { ethers } = await import('https://cdn.ethers.io/lib/ethers-5.2.esm.min.js')
         
-        console.log('[v0] SDK imported, calling ready()')
+        console.log('[Television] SDK imported, calling ready()')
         await sdk.actions.ready()
         
-        console.log('[v0] Getting Ethereum provider')
+        console.log('[Television] Getting Ethereum provider')
         const provider = await sdk.wallet.getEthereumProvider()
         
         if (!provider) {
           throw new Error('Wallet provider not available')
         }
         
-        console.log('[v0] Provider obtained, requesting accounts')
+        // Wrap provider with ethers
+        const ethersProvider = new ethers.providers.Web3Provider(provider)
+        const signer = ethersProvider.getSigner()
+        
+        console.log('[Television] Requesting accounts')
         statusDiv.textContent = 'Connecting wallet...'
         
-        // Get user's wallet address
-        const accounts = await provider.request({ method: 'eth_requestAccounts' })
-        const userAddress = accounts[0]
-        console.log('[v0] User address:', userAddress)
+        const userAddress = await signer.getAddress()
+        console.log('[Television] User address:', userAddress)
         
-        statusDiv.textContent = 'Preparing transaction...'
+        // Create contract instances
+        const televisionContract = new ethers.Contract(TELEVISION_ADDRESS, televisionAbi, ethersProvider)
+        const usdcContract = new ethers.Contract(USDC_ADDRESS, usdcAbi, signer)
         
-        // USDC contract address on Base
-        const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
-        const recipientAddress = '${YOUR_WALLET_ADDRESS}'
-        const amount = '250000' // 0.25 USDC (6 decimals)
+        statusDiv.textContent = 'Checking game state...'
         
-        // Encode ERC20 transfer function call
-        // transfer(address to, uint256 amount)
-        const transferData = '0xa9059cbb' + 
-          recipientAddress.slice(2).padStart(64, '0') + 
-          parseInt(amount).toString(16).padStart(64, '0')
+        // Get current price and slot0
+        const currentPrice = await televisionContract.getPrice()
+        const slot0 = await televisionContract.getSlot0()
         
-        console.log('[v0] Sending transaction')
-        statusDiv.textContent = 'Please confirm in your wallet...'
+        console.log('[Television] Current price:', currentPrice.toString())
+        console.log('[Television] Current epochId:', slot0.epochId.toString())
         
-        const txHash = await provider.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userAddress,
-            to: usdcAddress,
-            data: transferData,
-            chainId: '0x2105' // Base chain ID (8453 in hex)
-          }]
-        })
+        // Check USDC allowance
+        statusDiv.textContent = 'Checking USDC allowance...'
+        const allowance = await usdcContract.allowance(userAddress, TELEVISION_ADDRESS)
         
-        console.log('[v0] Transaction sent:', txHash)
+        console.log('[Television] Current allowance:', allowance.toString())
+        console.log('[Television] Required amount:', currentPrice.toString())
+        
+        // Approve USDC if needed
+        if (allowance.lt(currentPrice)) {
+          statusDiv.textContent = 'Approving USDC... (1/2)'
+          console.log('[Television] Approving USDC')
+          
+          const approveTx = await usdcContract.approve(
+            TELEVISION_ADDRESS,
+            ethers.constants.MaxUint256
+          )
+          
+          statusDiv.textContent = 'Waiting for approval... (1/2)'
+          await approveTx.wait()
+          console.log('[Television] USDC approved')
+        }
+        
+        // Call takeover
+        statusDiv.textContent = 'Taking over channel... (2/2)'
+        console.log('[Television] Calling takeover')
+        
+        const deadline = Math.floor(Date.now() / 1000) + 3600
+        const televisionWithSigner = televisionContract.connect(signer)
+        
+        const takeoverTx = await televisionWithSigner.takeover(
+          '', // empty uri
+          userAddress, // channelOwner
+          slot0.epochId, // current epochId
+          deadline,
+          ethers.constants.MaxUint256 // maxPaymentAmount
+        )
+        
+        statusDiv.textContent = 'Confirming transaction...'
+        const receipt = await takeoverTx.wait()
+        
+        console.log('[Television] Takeover successful!', receipt.transactionHash)
         statusDiv.textContent = 'Payment successful! Redirecting...'
         statusDiv.className = 'status success'
         
-        // Redirect to game after 2 seconds
+        // Redirect to game
         setTimeout(() => {
           window.location.href = '${GAME_URL}'
         }, 2000)
         
       } catch (error) {
-        console.error('[v0] Payment error:', error)
+        console.error('[Television] Payment error:', error)
         statusDiv.textContent = 'Error: ' + (error.message || 'Payment failed')
         statusDiv.className = 'status error'
         payButton.disabled = false
       }
     })
     
-    console.log('[v0] Click handler attached')
+    console.log('[Television] Click handler attached')
     statusDiv.textContent = 'Ready to pay'
   </script>
 </body>
 </html>`
 
-    console.log("[v0] Payment frame HTML generated")
+    console.log("[Television] Payment frame HTML generated")
 
     res.setHeader("Content-Type", "text/html; charset=utf-8")
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
     res.status(200).send(html)
 
-    console.log("[v0] Payment frame response sent")
+    console.log("[Television] Payment frame response sent")
   } catch (e) {
-    console.error("[v0] Error in payment frame:", e.message)
+    console.error("[Television] Error in payment frame:", e.message)
     res.status(500).send(`Error: ${e.message}`)
   }
 }
