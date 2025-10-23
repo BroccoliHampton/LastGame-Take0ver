@@ -3,9 +3,12 @@ module.exports = async function handler(req, res) {
 
   try {
     const START_IMAGE_URL = process.env.START_IMAGE_URL || "https://i.imgur.com/IsUWL7j.png"
-    const PUBLIC_URL = process.env.PUBLIC_URL || "https://last-game-kappa.vercel.app"
+    let PUBLIC_URL = process.env.PUBLIC_URL || "https://last-game-kappa.vercel.app"
     const GAME_URL = process.env.GAME_URL
     const BASE_PROVIDER_URL = process.env.BASE_PROVIDER_URL
+
+    // Remove trailing slash to avoid double slashes
+    PUBLIC_URL = PUBLIC_URL.replace(/\/+$/, '')
 
     console.log("[Television] Payment frame loaded")
 
@@ -35,11 +38,6 @@ module.exports = async function handler(req, res) {
     h1 {
       font-size: 2rem;
       margin-bottom: 1rem;
-    }
-    .price {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      font-weight: 600;
     }
     p {
       font-size: 1.1rem;
@@ -109,7 +107,6 @@ module.exports = async function handler(req, res) {
 <body>
   <div class="container">
     <h1>📺 Television Game</h1>
-    <div class="price" id="priceDisplay">Loading price...</div>
     <p>Pay to take over the channel</p>
     <button id="payButton">Pay & Play</button>
     <div id="status" class="status"></div>
@@ -121,7 +118,6 @@ module.exports = async function handler(req, res) {
     
     const payButton = document.getElementById('payButton')
     const statusDiv = document.getElementById('status')
-    const priceDisplay = document.getElementById('priceDisplay')
     
     // Contract addresses
     const TELEVISION_ADDRESS = '0x9C751E6825EDAa55007160b99933846f6ECeEc9B'
@@ -138,33 +134,6 @@ module.exports = async function handler(req, res) {
       'function approve(address spender, uint256 amount) external returns (bool)',
       'function allowance(address owner, address spender) external view returns (uint256)'
     ]
-    
-    // Fetch current price
-    async function fetchPrice() {
-      try {
-        const { ethers } = await import('https://cdn.ethers.io/lib/ethers-5.2.esm.min.js')
-        
-        const provider = new ethers.providers.JsonRpcProvider('https://mainnet.base.org')
-        const contract = new ethers.Contract(TELEVISION_ADDRESS, televisionAbi, provider)
-        
-        const price = await contract.getPrice()
-        const priceInUsdc = ethers.utils.formatUnits(price, 6)
-        
-        priceDisplay.textContent = priceInUsdc === '0.0' ? 'FREE!' : priceInUsdc + ' USDC'
-        
-        return price
-      } catch (error) {
-        console.error('[Television] Error fetching price:', error)
-        priceDisplay.textContent = 'Error loading price'
-        return null
-      }
-    }
-    
-    // Fetch price on load
-    fetchPrice()
-    
-    // Refresh price every 10 seconds
-    setInterval(fetchPrice, 10000)
     
     payButton.addEventListener('click', async () => {
       console.log('[Television] Button clicked!')
