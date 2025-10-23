@@ -5,14 +5,13 @@ module.exports = async function handler(req, res) {
     const START_IMAGE_URL = process.env.START_IMAGE_URL || "https://i.imgur.com/IsUWL7j.png"
     let PUBLIC_URL = process.env.PUBLIC_URL || "https://last-game-kappa.vercel.app"
     const GAME_URL = process.env.GAME_URL
-    const BASE_PROVIDER_URL = process.env.BASE_PROVIDER_URL
 
     // Remove trailing slash to avoid double slashes
     PUBLIC_URL = PUBLIC_URL.replace(/\/+$/, '')
 
     console.log("[Television] Payment frame loaded")
 
-    // Simple frame that starts with USDC approval
+    // Simple frame with transaction button - NO JavaScript
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -20,17 +19,17 @@ module.exports = async function handler(req, res) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Television Payment Frame</title>
   
-  <!-- Farcaster Frame Meta Tags for Approval Transaction -->
+  <!-- Farcaster Frame Meta Tags for Transaction -->
   <meta property="fc:frame" content="vNext" />
   <meta property="fc:frame:image" content="${START_IMAGE_URL}" />
   <meta property="fc:frame:image:aspect_ratio" content="1:1" />
-  <meta property="fc:frame:button:1" content="Approve USDC (Step 1)" />
+  <meta property="fc:frame:button:1" content="Take Over Channel" />
   <meta property="fc:frame:button:1:action" content="tx" />
-  <meta property="fc:frame:button:1:target" content="${PUBLIC_URL}/api/approve" />
-  <meta property="fc:frame:post_url" content="${PUBLIC_URL}/api/approved" />
+  <meta property="fc:frame:button:1:target" content="${PUBLIC_URL}/api/transaction" />
+  <meta property="fc:frame:post_url" content="${PUBLIC_URL}/api/verify" />
   
   <!-- Open Graph Meta Tags -->
-  <meta property="og:title" content="Television Game" />
+  <meta property="og:title" content="Television Payment Frame" />
   <meta property="og:image" content="${START_IMAGE_URL}" />
   
   <style>
@@ -64,26 +63,17 @@ module.exports = async function handler(req, res) {
       opacity: 0.8;
       margin-top: 2rem;
     }
-    .steps {
-      font-size: 0.9rem;
-      margin-top: 1.5rem;
-      text-align: left;
-      background: rgba(255,255,255,0.1);
-      padding: 1rem;
-      border-radius: 8px;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📺 Television Game</h1>
-    <p>Pay to take over the channel</p>
-    <div class="steps">
-      <strong>How it works:</strong><br>
-      1. Approve USDC spending (one-time)<br>
-      2. Take over the channel
+    <p>Ready to take over the channel?</p>
+    <p style="font-size: 0.95rem;">Click the button below to pay and play</p>
+    <div class="info">
+      Price decays to 0 over 1 hour<br>
+      90% goes to previous player, 10% to treasury
     </div>
-    <div class="info">Price decays to 0 over 1 hour</div>
   </div>
 </body>
 </html>`
